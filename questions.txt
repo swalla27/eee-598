@@ -1,0 +1,6 @@
+EEE 598: RF Transceivers
+- What is the difference between spurs and harmonics? Is there a difference between interferers and blockers?
+- Why do both dbpolar(-20,180) and dbpolar(-20,0) lead to the same result of having -20dB? Doesn't 180 degrees mean the real part is negative, and would therefore be +20dB?
+- Why are there more spurs or harmonics in the ADS simulations for Lab 1 Task 5 when the input power is 0dBm, as compared to a negative input power?
+- What is the physical explanation behind why compression occurs in these systems?
+- 
