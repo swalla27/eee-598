@@ -5,11 +5,20 @@
 
 # Homework 2 on QPSK
 
+# This file is the python code used to make all graphs, which are stored in a single pdf file (...graphs.pdf). There is an explanation of results at the bottom of this file.
+# This code will make a pdf containing 24 graphs with 6 different SNR settings and 4 graphs for each individual SNR. 
+# The 4 graphs for each SNR are: two constellation diagrams, a time domain graph, and a frequency domain graph.
+# Also, the first four problems are written by hand in the other pdf (...written.pdf).
+
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.backends.backend_pdf
 from random import randint
 from scipy.fft import fft
 import os, sys
+
+# Create a pdf object which will store every graph in this program
+pdf = matplotlib.backends.backend_pdf.PdfPages('homework/hw2/swalla27_hw2_graphs.pdf')
 
 N = 10_000 # The number of bits
 q_gain = 0.9 # The gain of the quadrature, where one is ideal
@@ -85,7 +94,8 @@ for SNR_dB in range(6, 24, 3):
 
     # Make a constellation diagram for the noise only case
     BER = find_bit_error_rate(S_N, bits)
-    plt.close()
+    fig = plt.figure()
+
     plt.scatter(S_N.real, S_N.imag, color='red', marker='x')
     plt.xlabel('Real Component')
     plt.xlim([-const_diag_scale, const_diag_scale])
@@ -94,11 +104,14 @@ for SNR_dB in range(6, 24, 3):
     plt.title(f'Constellation Diagram, Noise Only, SNR = {SNR_dB} dB', fontweight='bold')
     plt.figtext(0.15, 0.15, f'BER = {BER:.3f}', fontweight='bold')
     plt.grid(True)
-    plt.savefig(f'homework/hw2/const_noise_only_{SNR_dB}dB.png', dpi=300)
+
+    pdf.savefig(fig)
+    plt.close()
 
     # Make a constellation diagram for the noise and impairment case
     BER = find_bit_error_rate(S_imp, bits)
-    plt.close()
+    fig = plt.figure()
+
     plt.scatter(S_imp.real, S_imp.imag, color='black', marker='x')
     plt.xlabel('Real Component')
     plt.xlim([-const_diag_scale, const_diag_scale])
@@ -109,7 +122,9 @@ for SNR_dB in range(6, 24, 3):
     plt.figtext(0.15, 0.18, f'Q Gain = {q_gain:.1f}', fontweight='bold', color='red')
     plt.figtext(0.15, 0.21, f'Phase Error = {phase_err_deg:.0f}', fontweight='bold', color='red')
     plt.grid(True)
-    plt.savefig(f'homework/hw2/const_impaired_{SNR_dB}dB.png', dpi=300)
+
+    pdf.savefig(fig)
+    plt.close()
 
     #############################
     ##### Time domain graph #####
@@ -139,7 +154,8 @@ for SNR_dB in range(6, 24, 3):
     time_waveform_array = np.array(time_waveform_list)
 
     # Graph the time domain signal and save the output in my homework directory
-    plt.close()
+    fig = plt.figure()
+
     plt.plot(time_points_complete, time_waveform_array)
     plt.xlabel('Time (s)')
     plt.ylabel('Voltage (V)')
@@ -147,7 +163,9 @@ for SNR_dB in range(6, 24, 3):
     plt.ylim([-3, 3])
     plt.title(f'Time Domain, {number_symbols_to_show} Symbols Shown, SNR = {SNR_dB} dB', fontweight = 'bold')
     plt.grid(True)
-    plt.savefig(f'homework/hw2/time_domain_{SNR_dB}dB.png', dpi = 300)
+
+    pdf.savefig(fig)
+    plt.close()
 
     ##################################
     ##### Frequency domain graph #####
@@ -161,13 +179,19 @@ for SNR_dB in range(6, 24, 3):
     freq_points_MHz = freq_points / 1e6
 
     # Graph the fft and save the figure in my homework directory
-    plt.close()
+    fig = plt.figure()
+    
     plt.plot(freq_points_MHz, 2.0/N * np.abs(freq_waveform[:N*M//2]))
     plt.xlabel('Frequency (MHz)')
     plt.ylabel('FFT Magnitude')
     plt.title(f'Frequency Domain, SNR = {SNR_dB} dB', fontweight = 'bold')
     plt.grid(True)
-    plt.savefig(f'homework/hw2/freq_domain_{SNR_dB}dB.png', dpi = 300)
+
+    pdf.savefig(fig)
+    plt.close()
+
+# Now I need to close the pdf object to free up memory
+pdf.close()
 
 ##################################
 ##### Results Interpretation #####
@@ -184,4 +208,5 @@ you can see how the amplitude and phase is very volatile and subject to sudden c
 those graphs show. That is, each one has a peak at 4 MHz. This is to be expected, and I think the noise around that tone is also expected because we have added white gaussian
 noise to the signal. The peak becomes slightly more pronounced as the SNR increases, but that difference is hardly noticeable. I would expect the noise floor to decrease in
 magnitude as the SNR increases, because that is how I coded this problem. That is, I increased the SNR by decreasing the power of the noise, while leaving the power of the 
-signal alone. Since I did not use pulse shaping, """
+signal alone. Since I did not use pulse shaping, that will make the bandwidth more wide than absolutely necessary. That would explain the size of the bandwidth in these 
+frequency domain figures."""
