@@ -16,7 +16,7 @@ from scipy.fft import fft, fftfreq
 PROJ_FOLDER = '/home/steven-wallace/Documents/asu/eee-598/homework'
 pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(PROJ_FOLDER, 'swalla27_hw3_graphs.pdf'))
 
-# Define several frequencies for the cosine input waveforms.
+# Define frequencies for the cosine input waveforms.
 FREQ_1 = 12e9
 OMEGA_1 = FREQ_1*2*np.pi
 PERIOD_1 = 1 / FREQ_1
@@ -34,6 +34,18 @@ ALPHA3 = -15
 
 # ALPHA2 = 0.126
 # ALPHA3 = -0.0473
+
+# Define variables for how to sample the waveforms in the time domain.
+NUM_PERIODS = 5
+SAMPLES_PER = int(SAMPLE_FREQ / FREQ_1)
+SAMPLE_SPACING = 1 / SAMPLE_FREQ
+N = NUM_PERIODS * SAMPLES_PER
+
+# The input powers which will be tested in the sweep.
+POWERS_TO_TEST = np.arange(-10, 41)
+
+# The x-axis used by all time domain waveforms in the program.
+input_times = np.arange(0, PERIOD_1*NUM_PERIODS, SAMPLE_SPACING)
 
 #####################################
 ##### Unit Conversion Functions #####
@@ -108,7 +120,7 @@ def harmonics_from_fft(fft_dBm: np.array):
     third_harm = fft_dBm[15]
     return fundamental, second_harm, third_harm
 
-def find_interception(x: np.array, y1: np.array, y2: np.array, tol=20):
+def find_interception(x: np.array, y1: np.array, y2: np.array):
     """This function will find the interception between two waveforms stored as numpy arrays.\n
        It will return the x and y-values of the interception point."""
 
@@ -118,20 +130,13 @@ def find_interception(x: np.array, y1: np.array, y2: np.array, tol=20):
     intercept_y = y1[intercept_idx]
     return intercept_x, intercept_y, intercept_idx
 
-#####################################################
-##### Sweep Input Power, Case of Harmonics Only #####
-#####################################################
+######################################
+##### Sweep Input Power Function #####
+######################################
 
-num_periods = 5
-samples_per_period = int(SAMPLE_FREQ / FREQ_1)
-sample_spacing = 1 / SAMPLE_FREQ
-N = num_periods * samples_per_period
+def sweep_input_power(which_model, model_name: str):
 
-input_times = np.arange(0, PERIOD_1*num_periods, sample_spacing)
 
-POWERS_TO_TEST = np.arange(-10, 41)
-
-def sweep_input_power(polynomial_model, model_name: str):
     fund_powers = np.zeros(len(POWERS_TO_TEST))
     harm2_powers = np.zeros(len(POWERS_TO_TEST))
     harm3_powers = np.zeros(len(POWERS_TO_TEST))
@@ -139,9 +144,9 @@ def sweep_input_power(polynomial_model, model_name: str):
     for idx, Pin_dBm in enumerate(POWERS_TO_TEST):
 
         amplitude = dBm_to_amplitude(Pin_dBm)
-        output_voltages = polynomial_model(input_times)
+        output_voltages = which_model(input_times, amplitude)
 
-        fft_frequencies = fftfreq(N, sample_spacing)[:N//2]
+        fft_frequencies = fftfreq(N, SAMPLE_SPACING)[:N//2]
         fft_raw = fft(output_voltages)
         fft_volts = 2.0/N * np.abs(fft_raw[0:N//2])
         fft_dBm = volts_to_dBm(fft_volts)
@@ -182,61 +187,10 @@ def sweep_input_power(polynomial_model, model_name: str):
     pdf.savefig(fig)
     plt.close()
 
-#######################################################
-##### Sweep Input Power, Intermodulation Included #####
-#######################################################
 
-fund_powers = np.zeros(len(POWERS_TO_TEST))
-harm2_powers = np.zeros(len(POWERS_TO_TEST))
-harm3_powers = np.zeros(len(POWERS_TO_TEST))
+if __name__ == "__main__":
 
-for idx, Pin_dBm in enumerate(POWERS_TO_TEST):
-
-    amplitude = dBm_to_amplitude(Pin_dBm)
-    output_voltages = intermod_model(input_times)
-
-    fft_frequencies = fftfreq(N, sample_spacing)[:N//2]
-    fft_raw = fft(output_voltages)
-    fft_volts = 2.0/N * np.abs(fft_raw[0:N//2])
-    fft_dBm = volts_to_dBm(fft_volts)
-    
-    fund_power, harm2_power, harm3_power = harmonics_from_fft(fft_dBm)
-    fund_powers[idx] = fund_power
-    harm2_powers[idx] = harm2_power
-    harm3_powers[idx] = harm3_power
-
-    if Pin_dBm == 5:
-        graphing_routine(x=input_times*1e9, y=output_voltages, xfield='Time (ns)', yfield='Output Voltage (V)', 
-                        tfield=f'Time Domain; Pin = {Pin_dBm} dBm; Including Intermodulation', show=False)
-        graphing_routine(x=fft_frequencies/1e9, y=fft_dBm, xfield='Freq (GHz)', yfield='FFT Magnitude', 
-                        tfield=f'Frequency Domain; Pin = {Pin_dBm} dBm; Including Intermodulation', show=False)
-
-tanline = create_tangent_line(POWERS_TO_TEST, fund_powers)
-
-iip2, *_ = find_interception(POWERS_TO_TEST, tanline, harm2_powers)
-iip3, *_ = find_interception(POWERS_TO_TEST, tanline, harm3_powers)
-cp_in, _, comp_idx = find_interception(POWERS_TO_TEST, tanline-1, fund_powers)
-print(comp_idx)
-
-print(f'Intermod Case:\n\tInput Comp = {cp_in:.0f} dBm\n\tIIP3 = {iip3:.0f} dBm\n\tIIP2 = {iip2:.0f} dBm')
-
-fig = plt.figure()
-
-plt.plot(POWERS_TO_TEST[:comp_idx+5], fund_powers[:comp_idx+5], label='Fundamental Tone', color='black')
-plt.plot(POWERS_TO_TEST, tanline, label='Tangent Line', linestyle='dashed', color='red')
-plt.plot(POWERS_TO_TEST, harm2_powers, label='Second Harmonic', color='tab:blue')
-plt.plot(POWERS_TO_TEST, harm3_powers, label='Third Harmonic', color='green')
-plt.xlabel('Input Power (dBm)')
-plt.ylabel('Output Power (dBm)')
-plt.title('Input Power Sweep; Including Intermodulation')
-plt.legend()
-plt.grid(True)
-plt.show()
-
-pdf.savefig(fig)
-plt.close()
-
-
-
+    sweep_input_power(harmonic_model, 'Harmonic')
+    sweep_input_power(intermod_model, 'Intermod')
 
 pdf.close()
