@@ -25,6 +25,7 @@ plt.rcParams.update({
 ############################################
 """
 Gain = 14.5 dB
+CP Out = 15 dBm; CP In = 0.5 dBm
 OIP3 = 29 dBm; IIP3 = 14.5 dBm
 OIP2 = 38 dBm; IIP2 = 23.5 dBm
 """
@@ -49,11 +50,11 @@ PERIOD_2 = 1 / FREQ_2
 SAMPLE_FREQ = FREQ_1*40
 
 # Define constants related to the cubic polynomial model.
-# ALPHA1 = 2
-ALPHA2 = 10
-ALPHA3 = -15
+ALPHA1 = 4
+ALPHA2 = 2
+ALPHA3 = -5
 
-ALPHA1 = 28.18
+# ALPHA1 = 28.18
 # ALPHA2 = 0.126
 # ALPHA3 = -1.33
 
@@ -80,13 +81,13 @@ def dBm_to_amplitude(Pin_dBm: float):
     amplitude = np.sqrt(Pin_watts*2*50)
     return amplitude
 
-def volts_to_dBm(V: float):
+def volts_to_dBm(Vpk: float):
     """A function which converts a voltage to a power in dBm. This is used to convert the FFT into dBm."""
 
-    return 10 * np.log10(V**2 / 50)
-
-def ratio_to_dB20(x: float):
-    return 20 * np.log10(x)
+    Vrms = Vpk / np.sqrt(2)
+    power_W = Vrms**2 / 50
+    power_dBm = 10 * np.log10(power_W / 1e-3)
+    return power_dBm
 
 ##############################
 ##### Modeling Functions #####
@@ -129,19 +130,21 @@ def harmonics_from_fft(freq_array: np.array, fft_dBm: np.array):
     region = np.argmin(delta)
     window = fft_dBm[region-10:region+10]
     fund_value = np.max(window)
-    print(f'fund value = {fund_value}')
+
 
     delta = np.abs(freq_array-2*FREQ_1)
     region = np.argmin(delta)
     window = fft_dBm[region-10:region+10]
     harm2_value = np.max(window)
-    print(f'harm2 value = {harm2_value}')
 
     delta = np.abs(freq_array-3*FREQ_1)
     region = np.argmin(delta)
     window = fft_dBm[region-10:region+10]
     harm3_value = np.max(window)
-    print(f'harm3 value = {harm3_value}')
+
+    # print(f'fund value = {fund_value}')
+    # print(f'harm2 value = {harm2_value}')
+    # print(f'harm3 value = {harm3_value}')
 
     return fund_value, harm2_value, harm3_value
 
@@ -175,14 +178,11 @@ def sweep_input_power(selected_model: Callable, model_name: str):
 
     # Begin to loop over the input powers specified above.
     for idx, Pin_dBm in enumerate(INPUT_POWERS):
-        print(Pin_dBm)
 
         # First, convert the input power to an amplitude. Then, extract the input and output voltages from the chosen model with that amplitude.
         # Finally, calculate the average value of the output voltage so that it can be subtracted from the FFT.
         amplitude = dBm_to_amplitude(Pin_dBm)
         output_voltages, input_voltages = selected_model(INPUT_TIMES, amplitude)
-        gain_est = ratio_to_dB20(max(output_voltages) / amplitude)
-        print(f'\tVoltage Gain Estimate = {gain_est:.1f} dB')
 
         # Find the frequencies on the x-axis for these FFT plots.
         freq_array = fftfreq(N, SAMPLE_SPACING)[:N//2]
@@ -204,12 +204,12 @@ def sweep_input_power(selected_model: Callable, model_name: str):
         harm3_powers[idx] = harm3_power
 
         # Create time and frequency domain graphs under the following condition.
-        if (Pin_dBm == -10) or (Pin_dBm == 10):
+        if (Pin_dBm == -10) or (Pin_dBm == 0):
 
             # This section will graph the time domain input and output voltages when the if condition above is met.
             fig = plt.figure()
             plt.plot(INPUT_TIMES[:N//10]*1e9, output_voltages[:N//10], label='Output Voltage', color='black')
-            plt.plot(INPUT_TIMES[:N//10]*1e9, input_voltages[:N//10], label='Input Voltage', color='red')
+            plt.plot(INPUT_TIMES[:N//10]*1e9, input_voltages[:N//10], label='Input Voltage', color='tab:blue')
             plt.xlabel('Time (ns)')
             plt.ylabel('Output Voltage (V)')
             plt.title(f'Time Domain; Pin = {Pin_dBm} dBm; {model_name} Case')
@@ -243,17 +243,17 @@ def sweep_input_power(selected_model: Callable, model_name: str):
 
     # Print a summary of the intercept points to the terminal.
     print(f'{model_name} Case:')
-    print(f'\tVoltage Gain Estimate = {gain_est:.1f} dB')
+    print(f'\tGain Estimate = {oip3-iip3:.1f} dB')
     print(f'\tCP In = {cp_in:.1f} dBm; CP Out = {cp_out:.1f} dBm')
     print(f'\tIIP3 = {iip3:.1f} dBm; OIP3 = {oip3:.1f} dBm')
     print(f'\tIIP2 = {iip2:.1f} dBm; OIP2 = {oip2:.1f} dBm')
 
     # Create the graph of input power vs output power. This will include the fundamental tone, its tangent, the 2nd harmonic, and the 3rd harmonic.
     fig = plt.figure()
-    plt.plot(INPUT_POWERS[:comp_idx+6], fund_powers[:comp_idx+6], label='Fundamental Tone', color='black')
-    plt.plot(INPUT_POWERS, tanline, label='Tangent Line', linestyle='dashed', color='red')
+    plt.plot(INPUT_POWERS[:comp_idx+6], fund_powers[:comp_idx+6], label='Fundamental Tone', color='red')
+    plt.plot(INPUT_POWERS, tanline, label='Tangent Line', linestyle='dashed', color='black')
     plt.plot(INPUT_POWERS, harm2_powers, label='Second Harmonic', color='tab:blue')
-    plt.plot(INPUT_POWERS, harm3_powers, label='Third Harmonic', color='green')
+    plt.plot(INPUT_POWERS, harm3_powers, label='Third Harmonic', color='tab:green')
     plt.xlabel('Input Power (dBm)')
     plt.ylabel('Output Power (dBm)')
     plt.title(f'Input Power Sweep; {model_name} Case')
