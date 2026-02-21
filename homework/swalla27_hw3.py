@@ -125,25 +125,22 @@ def harmonics_from_fft(freq_array: np.array, fft_dBm: np.array):
        Currently hard-coded under the assumption those values will always exist at the same indices."""
     
     # Find the index of the fundamental frequency.
-    delta_array = np.abs(freq_array-FREQ_1)
-    region = np.argmin(delta_array)
+    delta = np.abs(freq_array-FREQ_1)
+    region = np.argmin(delta)
     window = fft_dBm[region-10:region+10]
-    fund_idx = np.argmax(window) + (region-10)
-    fund_value = fft_dBm[fund_idx]
+    fund_value = np.max(window)
     print(f'fund value = {fund_value}')
 
-    delta_array = np.abs(freq_array-2*FREQ_1)
-    region = np.argmin(delta_array)
+    delta = np.abs(freq_array-2*FREQ_1)
+    region = np.argmin(delta)
     window = fft_dBm[region-10:region+10]
-    harm2_idx = np.argmax(window) + (region-10)
-    harm2_value = fft_dBm[harm2_idx]
+    harm2_value = np.max(window)
     print(f'harm2 value = {harm2_value}')
 
-    delta_array = np.abs(freq_array-3*FREQ_1)
-    region = np.argmin(delta_array)
+    delta = np.abs(freq_array-3*FREQ_1)
+    region = np.argmin(delta)
     window = fft_dBm[region-10:region+10]
-    harm3_idx = np.argmax(window) + (region-10)
-    harm3_value = fft_dBm[harm3_idx]
+    harm3_value = np.max(window)
     print(f'harm3 value = {harm3_value}')
 
     return fund_value, harm2_value, harm3_value
