@@ -15,12 +15,6 @@ import matplotlib.backends.backend_pdf
 from scipy.fft import fft, fftfreq
 from typing import Callable
 
-plt.rcParams.update({
-    "font.family": "serif",
-    "font.serif": ["Nimbus Roman"],
-    "mathtext.fontset": "cm"
-})
-
 ############################################
 ##### LNA Should Have These Properties #####
 ############################################
@@ -30,7 +24,6 @@ CP Out = 15 dBm; CP In = 0.5 dBm
 OIP3 = 29 dBm; IIP3 = 14.5 dBm
 OIP2 = 38 dBm; IIP2 = 23.5 dBm
 """
-TARGET_VECTOR = np.array([14.5, 14.5, 23.5])
 
 #####################
 ##### Constants #####
@@ -52,9 +45,9 @@ PERIOD_2 = 1 / FREQ_2
 SAMPLE_FREQ = FREQ_1*40
 
 # Define constants related to the cubic polynomial model.
-ALPHA1 = 4
-ALPHA2 = 2
-ALPHA3 = -5
+ALPHA1 = 3.5
+ALPHA2 = 0.74
+ALPHA3 = -2.34
 
 # ALPHA1 = 28.18
 # ALPHA2 = 0.126
@@ -111,7 +104,7 @@ def intermod_model(t: float, Vpk: float):
     x2 = Vpk*np.cos(OMEGA_2*t)
     return cubic_polynomial(x1+x2), x1+x2
 
-def create_tangent_line(x: np.array, y: np.array):
+def create_tanline(x: np.array, y: np.array):
     """Create a tangent line from two numpy arrays x and y.\n
        Currently hard-coded to make a tangent out of the first two points in the arrays."""
 
@@ -123,32 +116,15 @@ def create_tangent_line(x: np.array, y: np.array):
 ##### Routine Functions #####
 #############################
 
-def harmonics_from_fft(freq_array: np.array, fft_dBm: np.array):
-    """This function will return the fundemental, second harmonic, and third harmonic intensities from an FFT waveform.\n
-       Currently hard-coded under the assumption those values will always exist at the same indices."""
-    
-    # Find the index of the fundamental frequency.
-    delta = np.abs(freq_array-FREQ_1)
+def find_local_max(x: np.array, y: np.array, search_here: float):
+    """This function will search in the region surrounding 'seach_here' for a local maximum in the y-axis array.\n
+       It will return the maximum y-value in the neighborhood surrounding that search point."""
+
+    delta = np.abs(x-search_here)
     region = np.argmin(delta)
-    window = fft_dBm[region-10:region+10]
-    fund_value = np.max(window)
-
-
-    delta = np.abs(freq_array-2*FREQ_1)
-    region = np.argmin(delta)
-    window = fft_dBm[region-10:region+10]
-    harm2_value = np.max(window)
-
-    delta = np.abs(freq_array-3*FREQ_1)
-    region = np.argmin(delta)
-    window = fft_dBm[region-10:region+10]
-    harm3_value = np.max(window)
-
-    # print(f'fund value = {fund_value}')
-    # print(f'harm2 value = {harm2_value}')
-    # print(f'harm3 value = {harm3_value}')
-
-    return fund_value, harm2_value, harm3_value
+    window = y[region-10:region+10]
+    local_max = np.max(window)
+    return local_max
 
 def find_intercept(x: np.array, y1: np.array, y2: np.array):
     """This function will find the interception between two waveforms stored as numpy arrays.\n
@@ -195,23 +171,27 @@ def sweep_input_power(selected_model: Callable, model_name: str, verbose=True, m
         out_fft_dBm = Vpk_to_dBm(out_fft_volts)
 
         # Find the FFT of the input voltage and convert this to dBm.
-        # in_fft_raw = fft(input_voltages)
-        # in_fft_volts = 2.0/N * np.abs(in_fft_raw[:N//2])
-        # in_fft_dBm = Vpk_to_dBm(in_fft_volts)
+        in_fft_raw = fft(input_voltages)
+        in_fft_volts = 2.0/N * np.abs(in_fft_raw[:N//2])
+        in_fft_dBm = Vpk_to_dBm(in_fft_volts)
         
         # Extract the power of the fundamental tone and the two harmonics based on the output FFT.
-        fund_power, harm2_power, harm3_power = harmonics_from_fft(freq_array, out_fft_dBm)
+        fund_power = find_local_max(freq_array, out_fft_dBm, search_here=FREQ_1)
+        harm2_power = find_local_max(freq_array, out_fft_dBm, search_here=FREQ_1*2)
+        harm3_power = find_local_max(freq_array, out_fft_dBm, search_here=FREQ_1*3)
         fund_powers[idx] = fund_power
         harm2_powers[idx] = harm2_power
         harm3_powers[idx] = harm3_power
 
         # Create time and frequency domain graphs under the following condition.
-        if (Pin_dBm == -10 or Pin_dBm == 0) and makegraphs:
+        if (Pin_dBm == -10 or Pin_dBm == 0 or Pin_dBm == 10) and makegraphs:
 
             # This section will graph the time domain input and output voltages when the if condition above is met.
+            SLICE_START = 0
+            SLICE_END = N//10
             fig = plt.figure()
-            plt.plot(INPUT_TIMES[:N//10]*1e9, output_voltages[:N//10], label='Output Voltage', color='black')
-            plt.plot(INPUT_TIMES[:N//10]*1e9, input_voltages[:N//10], label='Input Voltage', color='tab:blue')
+            plt.plot(INPUT_TIMES[SLICE_START:SLICE_END]*1e9, output_voltages[SLICE_START:SLICE_END], label='Output Voltage', color='black')
+            plt.plot(INPUT_TIMES[SLICE_START:SLICE_END]*1e9, input_voltages[SLICE_START:SLICE_END], label='Input Voltage', color='tab:blue')
             plt.xlabel('Time (ns)')
             plt.ylabel('Output Voltage (V)')
             plt.title(f'Time Domain; Pin = {Pin_dBm} dBm; {model_name} Case')
@@ -223,23 +203,23 @@ def sweep_input_power(selected_model: Callable, model_name: str, verbose=True, m
             plt.close()
 
             # This section will graph an FFT of the input and output when the if condition above is met.
-            # SLICE_START = 10
-            # SLICE_END = N//10
-            # fig = plt.figure()
-            # plt.plot(freq_array[SLICE_START:SLICE_END]/1e9, out_fft_dBm[SLICE_START:SLICE_END], label='Output Signal', color='black')
-            # plt.plot(freq_array[SLICE_START:SLICE_END]/1e9, in_fft_dBm[SLICE_START:SLICE_END], label='Input Signal', color='red')
-            # plt.xlabel('Frequency (GHz)')
-            # plt.ylabel('FFT Magnitude (dBm)')
-            # plt.title(f'Frequency Domain; Pin = {Pin_dBm} dBm; {model_name} Case')
-            # plt.legend(loc='lower left', edgecolor='black')
-            # plt.grid(True)
-            # pdf.savefig(fig)
-            # if SHOW_GRAPHS:
-            #     plt.show()
-            # plt.close()
+            SLICE_START = 10
+            SLICE_END = N//10
+            fig = plt.figure()
+            plt.plot(freq_array[SLICE_START:SLICE_END]/1e9, out_fft_dBm[SLICE_START:SLICE_END], label='Output Signal', color='black')
+            plt.plot(freq_array[SLICE_START:SLICE_END]/1e9, in_fft_dBm[SLICE_START:SLICE_END], label='Input Signal', color='red')
+            plt.xlabel('Frequency (GHz)')
+            plt.ylabel('FFT Magnitude (dBm)')
+            plt.title(f'Frequency Domain; Pin = {Pin_dBm} dBm; {model_name} Case')
+            plt.legend(loc='lower left', edgecolor='black')
+            plt.grid(True)
+            pdf.savefig(fig)
+            if SHOW_GRAPHS:
+                plt.show()
+            plt.close()
 
     # Create a tangent line of the fundamental tone, and then collect several intercept points.
-    tanline = create_tangent_line(INPUT_POWERS, fund_powers)
+    tanline = create_tanline(INPUT_POWERS, fund_powers)
     iip2, oip2, _ = find_intercept(INPUT_POWERS, tanline, harm2_powers)
     iip3, oip3, _ = find_intercept(INPUT_POWERS, tanline, harm3_powers)
     cp_in, cp_out, comp_idx = find_intercept(INPUT_POWERS, tanline-1, fund_powers)
@@ -247,7 +227,7 @@ def sweep_input_power(selected_model: Callable, model_name: str, verbose=True, m
     if verbose:
         # Print a summary of the intercept points to the terminal.
         print(f'{model_name} Case:')
-        print(f'\tGain Estimate = {oip3-iip3:.1f} dB')
+        print(f'\tGain = {oip3-iip3:.1f} dB')
         print(f'\tCP In = {cp_in:.1f} dBm; CP Out = {cp_out:.1f} dBm')
         print(f'\tIIP3 = {iip3:.1f} dBm; OIP3 = {oip3:.1f} dBm')
         print(f'\tIIP2 = {iip2:.1f} dBm; OIP2 = {oip2:.1f} dBm')
@@ -266,59 +246,21 @@ def sweep_input_power(selected_model: Callable, model_name: str, verbose=True, m
         plt.ylim([min(fund_powers)-5, oip2+5])
         plt.xlim([min(INPUT_POWERS), iip2+5])
         plt.legend(loc='upper left', edgecolor='black')
-        plt.figtext(0.72, 0.15, f'Input CP = {cp_in} dBm\nIIP3 = {iip3} dBm\nIIP2 = {iip2} dBm', bbox=dict(facecolor='white', alpha=0.7))
+        plt.figtext(0.68, 0.15, f'Gain = {oip3-iip3:.2f} dB\nInput CP = {cp_in} dBm\nIIP3 = {iip3} dBm\nIIP2 = {iip2} dBm', bbox=dict(facecolor='white', alpha=0.7))
         plt.grid(True)
         if SHOW_GRAPHS:
             plt.show()
         pdf.savefig(fig)
         plt.close()
 
-    return np.array([oip3-iip3, iip3, iip2])
-
 #############################
 ##### Program Execution #####
 #############################
 
 if __name__ == "__main__":
-
-    ALPHA1_VALUES = np.linspace(3.5, 4.5, num=30)
-    ALPHA2_VALUES = np.linspace(0.5, 1.5, num=30)
-    ALPHA3_VALUES = np.linspace(-2, -2.5, num=30)
-
-    aa1, aa2, aa3 = np.meshgrid(ALPHA1_VALUES, ALPHA2_VALUES, ALPHA3_VALUES, indexing='ij')
-    input_array = np.stack([aa1.ravel(), aa2.ravel(), aa3.ravel()], axis=1)
-    output_array = np.zeros([*input_array.shape])
-    
-    t0 = time.time()
-    for idx, input_comb in enumerate(input_array):
-
-        ALPHA1 = input_comb[0]
-        ALPHA2 = input_comb[1]
-        ALPHA3 = input_comb[2]
-
-        out = sweep_input_power(intermod_model, 'Intermodulation', verbose=False, makegraphs=False)
-        output_array[idx] = out
-
-        t1 = time.time()
-        print(f'{t1-t0:.2f} seconds have elapsed after {idx} iterations.')
-    
-    n = 5
-    distances = np.linalg.norm(output_array-TARGET_VECTOR, axis=1, keepdims=True)
-    indices = np.argsort(distances, axis=0)[:n].flatten()
-    top_points = output_array[indices]
-    top_distances = distances[indices]
-
-    with open('best_alpha_values.txt', 'w') as f:
-
-        print(input_array[indices], file=f)
-        print(top_distances, file=f)
-        print(top_points, file=f)
-
-
-
-    # # Call the function to sweep the input power twice, once with the harmonic only model and a second time with intermodulation included.
-    # sweep_input_power(harmonic_model, 'Harmonic')
-    # sweep_input_power(intermod_model, 'Intermodulation')
+    # Call the function to sweep the input power twice, once with the harmonic only model and a second time with intermodulation included.
+    sweep_input_power(harmonic_model, 'Harmonic')
+    sweep_input_power(intermod_model, 'Intermodulation')
 
     # Close the pdf object to free up memory.
     pdf.close()
