@@ -29,7 +29,7 @@ OIP2 = 38 dBm; IIP2 = 23.5 dBm
 ##### Constants #####
 #####################
 
-SHOW_GRAPHS = False
+# This is the project folder and I use that path to create a pdf object for storing the graphs.
 PROJ_FOLDER = '/home/steven-wallace/Documents/asu/eee-598/homework'
 pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(PROJ_FOLDER, 'swalla27_hw3_graphs.pdf'))
 
@@ -42,18 +42,18 @@ FREQ_2 = 12e9 + 100e6
 OMEGA_2 = FREQ_2*2*np.pi
 PERIOD_2 = 1 / FREQ_2
 
-SAMPLE_FREQ = FREQ_1*40
-
-# Define constants related to the cubic polynomial model.
+# These are the alpha values that actually give the gain, IIP3, and IIP2 of the LNA.
 ALPHA1 = 3.5
 ALPHA2 = 0.74
 ALPHA3 = -2.34
 
-# ALPHA1 = 28.18
-# ALPHA2 = 0.126
-# ALPHA3 = -1.33
+# These are the alpha values that I calculated by hand.
+# ALPHA1 = 5.31
+# ALPHA2 = 0.237
+# ALPHA3 = -0.89
 
 # Define variables for how to sample the waveforms in the time domain.
+SAMPLE_FREQ = FREQ_1*40
 NUM_PERIODS = 50
 SAMPLES_PER = int(SAMPLE_FREQ / FREQ_1)
 SAMPLE_SPACING = 1 / SAMPLE_FREQ
@@ -140,14 +140,21 @@ def find_intercept(x: np.array, y1: np.array, y2: np.array):
 ##### Sweep Input Power Function #####
 ######################################
 
-def sweep_input_power(selected_model: Callable, model_name: str, verbose=True, makegraphs=True):
+def sweep_input_power(selected_model: Callable, model_name: str, verbose=True, makegraphs=True, showgraphs=False):
     """The purpose of this function is to sweep the input power, collect several important metrics, and create a few graphs with each call.\n
        *****Inputs*****\n
        selected_model: I will pass either the harmonic model or the intermodulation model in this slot, which determines the condition for the sweep.\n
        model_name: The name of the model being used in this function call.\n
+       verbose: When set to True, the function will print important information to the terminal.\n
+       makegraphs: When set to True, the function will make graphs and store them in the pdf object we created above.\n
+       showgraphs: When set to True, the function will show those graphs as the program executes. Do not set makegraphs False and showgraphs True.\n
        *****Outputs*****\n
        This function will print information related to the intercept points to the terminal, and it will also create several graphs each time it is called.\n
        Those graphs include time domain, frequency domain, and then a single graph depicting input power vs output power."""
+    
+    if not makegraphs and showgraphs:
+        print("What did I tell you? How am I supposed to show graphs that I haven't made? Next time, please read the comments.")
+        sys.exit()
 
     # Initialize a few numpy arrays with zeros. Their purpose is to store the powers for the fundamental tone and each of the harmonics.
     fund_powers = np.zeros(len(INPUT_POWERS))
@@ -184,7 +191,7 @@ def sweep_input_power(selected_model: Callable, model_name: str, verbose=True, m
         harm3_powers[idx] = harm3_power
 
         # Create time and frequency domain graphs under the following condition.
-        if (Pin_dBm == -10 or Pin_dBm == 0 or Pin_dBm == 10) and makegraphs:
+        if (idx in [0, INPUT_POWERS.size//4, INPUT_POWERS.size//2]) and makegraphs:
 
             # This section will graph the time domain input and output voltages when the if condition above is met.
             SLICE_START = 0
@@ -194,11 +201,11 @@ def sweep_input_power(selected_model: Callable, model_name: str, verbose=True, m
             plt.plot(INPUT_TIMES[SLICE_START:SLICE_END]*1e9, input_voltages[SLICE_START:SLICE_END], label='Input Voltage', color='tab:blue')
             plt.xlabel('Time (ns)')
             plt.ylabel('Output Voltage (V)')
-            plt.title(f'Time Domain; Pin = {Pin_dBm} dBm; {model_name} Case')
+            plt.title(f'Time Domain; Pin = {Pin_dBm:.1f} dBm; {model_name} Case')
             plt.legend(loc='upper right', edgecolor='black')
             plt.grid(True)
             pdf.savefig(fig)
-            if SHOW_GRAPHS:
+            if showgraphs:
                 plt.show()
             plt.close()
 
@@ -210,11 +217,11 @@ def sweep_input_power(selected_model: Callable, model_name: str, verbose=True, m
             plt.plot(freq_array[SLICE_START:SLICE_END]/1e9, in_fft_dBm[SLICE_START:SLICE_END], label='Input Signal', color='red')
             plt.xlabel('Frequency (GHz)')
             plt.ylabel('FFT Magnitude (dBm)')
-            plt.title(f'Frequency Domain; Pin = {Pin_dBm} dBm; {model_name} Case')
+            plt.title(f'Frequency Domain; Pin = {Pin_dBm:.1f} dBm; {model_name} Case')
             plt.legend(loc='lower left', edgecolor='black')
             plt.grid(True)
             pdf.savefig(fig)
-            if SHOW_GRAPHS:
+            if showgraphs:
                 plt.show()
             plt.close()
 
@@ -248,7 +255,7 @@ def sweep_input_power(selected_model: Callable, model_name: str, verbose=True, m
         plt.legend(loc='upper left', edgecolor='black')
         plt.figtext(0.68, 0.15, f'Gain = {oip3-iip3:.2f} dB\nInput CP = {cp_in} dBm\nIIP3 = {iip3} dBm\nIIP2 = {iip2} dBm', bbox=dict(facecolor='white', alpha=0.7))
         plt.grid(True)
-        if SHOW_GRAPHS:
+        if showgraphs:
             plt.show()
         pdf.savefig(fig)
         plt.close()
