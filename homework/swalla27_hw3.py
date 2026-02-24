@@ -252,6 +252,7 @@ def sweep_input_power(selected_model: Callable, model_name: str, ALPHA: list, ve
         pdf.savefig(fig)
         plt.close()
 
+    # Output an array containing the gain, IIP3, and IIP2 of this run.
     return np.array([oip3-iip3, iip3, iip2]) 
 
 ###############################################
@@ -263,7 +264,10 @@ def search_input_space(target_vector: np.array, num_outputs=5):
        It does this by creating a nested loop over lots of different alpha values, and recording the gain, IIP3, and IIP2 of each one.\n
        Once it collects all of that information from about 27,000 iterations, it finds the best ones using linear algebra.\n
        All it does is find the distance between every vector and the target vector, then selects the best ones and prints that to a txt file.\n
-       This function will not be used in the final iteration of the homework that I turn in."""
+       This function will not be used in the final iteration of the homework that I turn in.\n
+       *****Inputs*****\n
+       target_vector: This contains the gain, IIP3, and IIP2 we are searching for. It could be something like 14.5, 14.5, 23.5.\n
+       num_outputs: The number of outputs to print to the txt file. That txt file contains the best alpha values."""
 
     # These are the alpha values that we will sweep. The following block of code will make a nested loop out of this.
     ALPHA1_VALUES = np.linspace(3.5, 4.5, num=30)
