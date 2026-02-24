@@ -38,7 +38,7 @@ FREQ_1 = 12e9
 OMEGA_1 = FREQ_1*2*np.pi
 PERIOD_1 = 1 / FREQ_1
 
-FREQ_2 = 12e9 + 100e6
+FREQ_2 = 12e9 * 1.1
 OMEGA_2 = FREQ_2*2*np.pi
 PERIOD_2 = 1 / FREQ_2
 
@@ -54,7 +54,7 @@ ALPHA3 = -2.34
 
 # Define variables for how to sample the waveforms in the time domain.
 SAMPLE_FREQ = FREQ_1*40
-NUM_PERIODS = 50
+NUM_PERIODS = 200
 SAMPLES_PER = int(SAMPLE_FREQ / FREQ_1)
 SAMPLE_SPACING = 1 / SAMPLE_FREQ
 N = NUM_PERIODS * SAMPLES_PER
@@ -153,7 +153,7 @@ def sweep_input_power(selected_model: Callable, model_name: str, verbose=True, m
        Those graphs include time domain, frequency domain, and then a single graph depicting input power vs output power."""
     
     if not makegraphs and showgraphs:
-        print("What did I tell you? How am I supposed to show graphs that I haven't made? Next time, please read the comments.")
+        print("Invalid argument combination. Try again.")
         sys.exit()
 
     # Initialize a few numpy arrays with zeros. Their purpose is to store the powers for the fundamental tone and each of the harmonics.
