@@ -30,7 +30,7 @@ OIP2 = 38 dBm; IIP2 = 23.5 dBm
 #####################
 
 # This is the project folder and I use that path to create a pdf object for storing the graphs.
-PROJ_FOLDER = '/home/steven-wallace/Documents/asu/eee-598/homework'
+PROJ_FOLDER = '/home/steven-wallace/Documents/asu/eee-598/homework/hw3'
 pdf = matplotlib.backends.backend_pdf.PdfPages(os.path.join(PROJ_FOLDER, 'swalla27_hw3_graphs.pdf'))
 
 # Define frequencies for the cosine input waveforms.
@@ -270,9 +270,9 @@ def search_input_space(target_vector: np.array, num_outputs=5):
        num_outputs: The number of outputs to print to the txt file. That txt file contains the best alpha values."""
 
     # These are the alpha values that we will sweep. The following block of code will make a nested loop out of this.
-    ALPHA1_VALUES = np.linspace(3.5, 4.5, num=30)
-    ALPHA2_VALUES = np.linspace(0.5, 1.5, num=30)
-    ALPHA3_VALUES = np.linspace(-2, -2.5, num=30)
+    ALPHA1_VALUES = np.linspace(5.5, 6.5, num=30)
+    ALPHA2_VALUES = np.linspace(2.0, 2.5, num=30)
+    ALPHA3_VALUES = np.linspace(-8, -9, num=30)
 
     # input_array is now a nested loop of those alpha values above, where every combination is included. 
     # output_array will store the outputs for comparison with the target.
@@ -302,16 +302,16 @@ def search_input_space(target_vector: np.array, num_outputs=5):
     output_path = os.path.join(PROJ_FOLDER, 'best_alpha_values.txt')
     with open(output_path, 'w') as f:
 
-        print('Searched the input space for alpha values which yield the following properties:', file=f)
+        print('Searched the input space for alpha values which yield the following:', file=f)
         print(f'\tGain = {target_vector[0]:.1f} dB\n\tIIP3 = {target_vector[1]:.1f} dBm\n\tIIP2 = {target_vector[2]:.1f} dBm', file=f)
 
         print('\nBest alpha values:', file=f)
         print(input_array[indices], file=f)
 
-        print('Their distances to the target vector:', file=f)
+        print('\nTheir distances to the target vector:', file=f)
         print(top_distances, file=f)
 
-        print('The gain, IIP3, and IIP2 of those alpha value combinations:')
+        print('\nThe gain, IIP3, and IIP2 of those alpha value combinations:', file=f)
         print(top_points, file=f)
 
 #############################
@@ -320,9 +320,11 @@ def search_input_space(target_vector: np.array, num_outputs=5):
 
 if __name__ == "__main__":
 
-    # Call the function to sweep the input power twice, once with the harmonic only model and a second time with intermodulation included.
-    sweep_input_power(harmonic_model, 'Harmonic', ALPHA)
-    sweep_input_power(intermod_model, 'Intermodulation', ALPHA)
+    search_input_space(np.array([14.5, 14.5, 23.5]))
+
+    # # Call the function to sweep the input power twice, once with the harmonic only model and a second time with intermodulation included.
+    # sweep_input_power(harmonic_model, 'Harmonic', ALPHA)
+    # sweep_input_power(intermod_model, 'Intermodulation', ALPHA)
 
     # Close the pdf object to free up memory.
     pdf.close()

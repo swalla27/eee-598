@@ -1,0 +1,25 @@
+Searched the input space for alpha values which yield the following:
+	Gain = 14.5 dB
+	IIP3 = 14.5 dBm
+	IIP2 = 23.5 dBm
+
+Best alpha values:
+[[ 5.94827586  2.46551724 -8.44827586]
+ [ 5.60344828  2.25862069 -8.44827586]
+ [ 6.12068966  2.46551724 -8.44827586]
+ [ 5.98275862  2.17241379 -8.44827586]
+ [ 5.94827586  2.5        -8.44827586]]
+
+Their distances to the target vector:
+[[0.70713088]
+ [0.70713088]
+ [0.70713088]
+ [0.70713088]
+ [0.70713088]]
+
+The gain, IIP3, and IIP2 of those alpha value combinations:
+[[14.4941619 14.        23.       ]
+ [14.4941619 14.        24.       ]
+ [14.4941619 14.        24.       ]
+ [14.4941619 14.        24.       ]
+ [14.4941619 14.        23.       ]]
