@@ -43,14 +43,10 @@ OMEGA_2 = FREQ_2*2*np.pi
 PERIOD_2 = 1 / FREQ_2
 
 # These are the alpha values that actually give the gain, IIP3, and IIP2 of the LNA.
-ALPHA1 = 5.97
-ALPHA2 = 2.30
-ALPHA3 = -8.45
+ALPHA = [5.97, 2.30, -8.45]
 
 # These are the alpha values that I calculated by hand.
-# ALPHA1 = 5.31
-# ALPHA2 = 0.237
-# ALPHA3 = -0.89
+# ALPHA = [5.31, 0.237, -0.89]
 
 # Define variables for how to sample the waveforms in the time domain.
 SAMPLE_FREQ = FREQ_1*40
@@ -88,21 +84,21 @@ def Vpk_to_dBm(Vpk: float):
 ##### Modeling Functions #####
 ##############################
 
-def cubic_polynomial(x: float):
-    return ALPHA1*x + ALPHA2*x**2 + ALPHA3*x**3
+def cubic_polynomial(x: float, ALPHA: list):
+    return ALPHA[0]*x + ALPHA[1]*x**2 + ALPHA[2]*x**3
 
-def harmonic_model(t: float, Vpk: float):
+def harmonic_model(t: float, Vpk: float, ALPHA: list):
     """A polynomial model which includes harmonics, but not intermodulation."""
     
     x = Vpk*np.cos(OMEGA_1*t)
-    return cubic_polynomial(x), x
+    return cubic_polynomial(x, ALPHA), x
 
-def intermod_model(t: float, Vpk: float):
+def intermod_model(t: float, Vpk: float, ALPHA: list):
     """A polynomial model which includes both intermodulation and harmonics."""
     
     x1 = Vpk*np.cos(OMEGA_1*t)
     x2 = Vpk*np.cos(OMEGA_2*t)
-    return cubic_polynomial(x1+x2), x1+x2
+    return cubic_polynomial(x1+x2, ALPHA), x1+x2
 
 def create_tanline(x: np.array, y: np.array):
     """Create a tangent line from two numpy arrays x and y.\n
@@ -140,7 +136,7 @@ def find_intercept(x: np.array, y1: np.array, y2: np.array):
 ##### Sweep Input Power Function #####
 ######################################
 
-def sweep_input_power(selected_model: Callable, model_name: str, verbose=True, makegraphs=True, showgraphs=False):
+def sweep_input_power(selected_model: Callable, model_name: str, ALPHA: list, verbose=True, makegraphs=True, showgraphs=False):
     """The purpose of this function is to sweep the input power, collect several important metrics, and create a few graphs with each call.\n
        *****Inputs*****\n
        selected_model: I will pass either the harmonic model or the intermodulation model in this slot, which determines the condition for the sweep.\n
@@ -151,10 +147,6 @@ def sweep_input_power(selected_model: Callable, model_name: str, verbose=True, m
        *****Outputs*****\n
        This function will print information related to the intercept points to the terminal, and it will also create several graphs each time it is called.\n
        Those graphs include time domain, frequency domain, and then a single graph depicting input power vs output power."""
-    
-    if not makegraphs and showgraphs:
-        print("Invalid argument combination. Try again.")
-        sys.exit()
 
     # Initialize a few numpy arrays with zeros. Their purpose is to store the powers for the fundamental tone and each of the harmonics.
     fund_powers = np.zeros(len(INPUT_POWERS))
@@ -167,7 +159,7 @@ def sweep_input_power(selected_model: Callable, model_name: str, verbose=True, m
         # First, convert the input power to an Vpk. Then, extract the input and output voltages from the chosen model with that Vpk.
         # Finally, calculate the average value of the output voltage so that it can be subtracted from the FFT.
         Vpk = dBm_to_Vpk(Pin_dBm)
-        output_voltages, input_voltages = selected_model(INPUT_TIMES, Vpk)
+        output_voltages, input_voltages = selected_model(INPUT_TIMES, Vpk, ALPHA)
 
         # Find the frequencies on the x-axis for these FFT plots.
         freq_array = fftfreq(N, SAMPLE_SPACING)[:N//2]
@@ -191,7 +183,7 @@ def sweep_input_power(selected_model: Callable, model_name: str, verbose=True, m
         harm3_powers[idx] = harm3_power
 
         # Create time and frequency domain graphs under the following condition.
-        if (idx in [0, INPUT_POWERS.size//4, INPUT_POWERS.size//2]) and makegraphs:
+        if (Pin_dBm in [-20, -5, 5]) and makegraphs:
 
             # This section will graph the time domain input and output voltages when the if condition above is met.
             SLICE_START = 0
@@ -262,6 +254,62 @@ def sweep_input_power(selected_model: Callable, model_name: str, verbose=True, m
 
     return np.array([oip3-iip3, iip3, iip2]) 
 
+###############################################
+##### Search for the correct alpha values #####
+###############################################
+
+def search_input_space(target_vector: np.array, num_outputs=5):
+    """The purpose of this function is to search for the alpha values which will produce the requested gain, IIP3, and IIP2.\n
+       It does this by creating a nested loop over lots of different alpha values, and recording the gain, IIP3, and IIP2 of each one.\n
+       Once it collects all of that information from about 27,000 iterations, it finds the best ones using linear algebra.\n
+       All it does is find the distance between every vector and the target vector, then selects the best ones and prints that to a txt file.\n
+       This function will not be used in the final iteration of the homework that I turn in."""
+
+    # These are the alpha values that we will sweep. The following block of code will make a nested loop out of this.
+    ALPHA1_VALUES = np.linspace(3.5, 4.5, num=30)
+    ALPHA2_VALUES = np.linspace(0.5, 1.5, num=30)
+    ALPHA3_VALUES = np.linspace(-2, -2.5, num=30)
+
+    # input_array is now a nested loop of those alpha values above, where every combination is included. 
+    # output_array will store the outputs for comparison with the target.
+    aa1, aa2, aa3 = np.meshgrid(ALPHA1_VALUES, ALPHA2_VALUES, ALPHA3_VALUES, indexing='ij')
+    input_array = np.stack([aa1.ravel(), aa2.ravel(), aa3.ravel()], axis=1)
+    output_array = np.zeros([*input_array.shape])
+    
+    # Loop over every element in the input array, which is each combination of alpha that we requested.
+    t0 = time.time()
+    for idx, input_comb in enumerate(input_array):
+
+        # The output is a numpy vector containing gain, IIP3, and IIP2 for that iteration. We store it and move on.
+        out = sweep_input_power(intermod_model, 'Intermodulation', ALPHA=input_comb, verbose=False, makegraphs=False)
+        output_array[idx] = out
+
+        # I am printing the duration for each run to the terminal to ensure things aren't moving too slow.
+        t1 = time.time()
+        print(f'{t1-t0:.2f} seconds have elapsed after {idx} iterations.')
+    
+    # This section will find the distance from the output vectors to the target vector, and find the 5 vectors closest to the target.
+    distances = np.linalg.norm(output_array-target_vector, axis=1, keepdims=True)
+    indices = np.argsort(distances, axis=0)[:num_outputs].flatten()
+    top_points = output_array[indices]
+    top_distances = distances[indices]
+
+    # This will print the results of our analysis to a txt file. This will contain the alpha values and their outputs.
+    output_path = os.path.join(PROJ_FOLDER, 'best_alpha_values.txt')
+    with open(output_path, 'w') as f:
+
+        print('Searched the input space for alpha values which yield the following properties:', file=f)
+        print(f'\tGain = {target_vector[0]:.1f} dB\n\tIIP3 = {target_vector[1]:.1f} dBm\n\tIIP2 = {target_vector[2]:.1f} dBm', file=f)
+
+        print('\nBest alpha values:', file=f)
+        print(input_array[indices], file=f)
+
+        print('Their distances to the target vector:', file=f)
+        print(top_distances, file=f)
+
+        print('The gain, IIP3, and IIP2 of those alpha value combinations:')
+        print(top_points, file=f)
+
 #############################
 ##### Program Execution #####
 #############################
@@ -269,8 +317,8 @@ def sweep_input_power(selected_model: Callable, model_name: str, verbose=True, m
 if __name__ == "__main__":
 
     # Call the function to sweep the input power twice, once with the harmonic only model and a second time with intermodulation included.
-    sweep_input_power(harmonic_model, 'Harmonic')
-    sweep_input_power(intermod_model, 'Intermodulation')
+    sweep_input_power(harmonic_model, 'Harmonic', ALPHA)
+    sweep_input_power(intermod_model, 'Intermodulation', ALPHA)
 
     # Close the pdf object to free up memory.
     pdf.close()
