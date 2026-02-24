@@ -43,9 +43,9 @@ OMEGA_2 = FREQ_2*2*np.pi
 PERIOD_2 = 1 / FREQ_2
 
 # These are the alpha values that actually give the gain, IIP3, and IIP2 of the LNA.
-ALPHA1 = 3.5
-ALPHA2 = 0.74
-ALPHA3 = -2.34
+ALPHA1 = 5.97
+ALPHA2 = 2.30
+ALPHA3 = -8.45
 
 # These are the alpha values that I calculated by hand.
 # ALPHA1 = 5.31
@@ -260,11 +260,14 @@ def sweep_input_power(selected_model: Callable, model_name: str, verbose=True, m
         pdf.savefig(fig)
         plt.close()
 
+    return np.array([oip3-iip3, iip3, iip2]) 
+
 #############################
 ##### Program Execution #####
 #############################
 
 if __name__ == "__main__":
+
     # Call the function to sweep the input power twice, once with the harmonic only model and a second time with intermodulation included.
     sweep_input_power(harmonic_model, 'Harmonic')
     sweep_input_power(intermod_model, 'Intermodulation')
