@@ -320,11 +320,11 @@ def search_input_space(target_vector: np.array, num_outputs=5):
 
 if __name__ == "__main__":
 
-    search_input_space(np.array([14.5, 14.5, 23.5]))
+    # search_input_space(np.array([14.5, 14.5, 23.5]))
 
-    # # Call the function to sweep the input power twice, once with the harmonic only model and a second time with intermodulation included.
-    # sweep_input_power(harmonic_model, 'Harmonic', ALPHA)
-    # sweep_input_power(intermod_model, 'Intermodulation', ALPHA)
+    # Call the function to sweep the input power twice, once with the harmonic only model and a second time with intermodulation included.
+    sweep_input_power(harmonic_model, 'Harmonic', ALPHA)
+    sweep_input_power(intermod_model, 'Intermodulation', ALPHA)
 
     # Close the pdf object to free up memory.
     pdf.close()
