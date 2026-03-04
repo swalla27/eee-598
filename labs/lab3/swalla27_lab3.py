@@ -16,84 +16,89 @@ import os
 # Frequencies have units of Hz and powers have units of dBm.
 class Tone():
     def __init__(self, freq: float, pwr: float, snr: float):
-        self.init_freq = freq
-        self.init_pwr = pwr
         self.freq = freq
         self.pwr = pwr
         self.noise_pwr = pwr - snr
 
-desired = Tone(2402e6, -30, 0)
-blocker = Tone(2403e6, -20, 0)
-signals = [desired, blocker]
+    def get_snr(self):
+        return self.pwr - self.noise_pwr
 
 def bandpass(signals, f_center: float, bandwidth: float, atten_pass: float, atten_stop: float, nf: float):
     for sig in signals:
-        sig.snr -= nf
+        sig.noise_pwr += nf
         if (f_center - bandwidth/2) < sig.freq < (f_center + bandwidth/2):
             sig.pwr -= atten_pass
         else:
             sig.pwr -= atten_stop
-    return
+    return signals
     
-def amplifier(signals, gain: float, nf: float):
-    for sig in signals:
+def amplifier(signals, gain: float, nf: float, iip3: float):
+
+    tmp = list()
+
+    # Handle the fundamental tone first.
+    signals[0].pwr += gain
+    signals[0].noise_pwr += nf
+    tmp.append(signals[0])
+
+    for sig in signals[1:]:
+        # Handle the blocker itself, it gets amplified and its noise power changes.
         sig.pwr += gain
-        sig.snr -= nf
-    return
+        sig.noise_pwr += nf
+        tmp.append(sig)
+
+        # Now, create the third order intermodulation products.
+        im_product_1 = Tone(2*signals[0].freq - sig.freq, 3*signals[0].pwr - 2*iip3 + gain, 0)
+        im_product_2 = Tone(2*sig.freq - signals[0].freq, 3*signals[0].pwr - 2*iip3 + gain, 0)
+        tmp.append(im_product_1)
+        tmp.append(im_product_2)
+
+    return tmp
 
 def mixer(signals, f_osc: float, gain: float, nf: float):
-    x = list()
     for sig in signals:
         sig.freq = abs(sig.freq - f_osc)
         sig.pwr += gain
-        sig.snr -= nf
-        x.append(sig)
-        x.append(Tone(freq=sig.freq+f_osc, pwr=sig.pwr+gain, snr=sig.snr-nf))
-    return x
+        sig.noise_pwr += nf
+    return signals
 
 def lowpass(signals, f_corner: float, atten_pass: float, atten_stop: float, nf: float):
     for sig in signals:
-        sig.snr -= nf
+        sig.noise_pwr += nf
         if sig.freq <= f_corner:
             sig.pwr -= atten_pass
         else:
             sig.pwr -= atten_stop
-    return
-
-def create_graph(signals: list, name: str):
-    for sig in signals:
-        plt.scatter(sig.freq/1e6, sig.pwr)
-    plt.xlabel('Frequency (MHz)')
-    plt.ylabel('Power (dBm)')
-    plt.title(f'Frequency Spectrum ({name})')
-    plt.grid(True)
-    # plt.show()
-
-bandpass(signals, f_center=2402e6, bandwidth=40e6, atten_pass=0, atten_stop=35, nf=2)
-# create_graph(signals, name='A')
-
-amplifier(signals, gain=15, nf=2)
-# create_graph(signals, name='B')
-
-signals = mixer(signals, f_osc=2412e6, gain=0, nf=2)
-# create_graph(signals, name='C')
-
-lowpass(signals, f_corner=15e6, atten_pass=0, atten_stop=50, nf=2)
-# create_graph(signals, name='D')
-
-amplifier(signals, gain=60, nf=10)
-# create_graph(signals, name='E')
-
-bandpass(signals, f_center=10e6, bandwidth=1e6, atten_pass=0, atten_stop=35, nf=2)
-# create_graph(signals, name='F')
+    return signals
 
 
-print(f'Desired Signal:')
-print(f'\t{desired.init_freq/1e6:.0f} MHz -> {desired.freq/1e6:.0f} MHz')
-print(f'\t{desired.init_pwr} dBm -> {desired.pwr} dBm')
-# print(f'\t{desired.init_snr} dB -> {desired.snr} dB')
+if __name__ == "__main__":
 
-print(f'Blocker Signal:')
-print(f'\t{blocker.init_freq/1e6:.0f} MHz -> {blocker.freq/1e6:.0f} MHz')
-print(f'\t{blocker.init_pwr} dBm -> {blocker.pwr} dBm')
-# print(f'\t{blocker.init_snr} dB -> {blocker.snr} dB')
+    # All frequencies have units of MHz and all powers have units of dBm.
+
+    block_freq = 2403
+    block_pwr = -60
+
+    desired = Tone(freq=2402, pwr=-60, snr=18)
+    blocker = Tone(freq=block_freq, pwr=block_pwr, snr=18)
+    signals = [desired, blocker]
+
+    signals = bandpass(signals, f_center=2402, bandwidth=40, atten_pass=0, atten_stop=35, nf=2)
+
+    signals = amplifier(signals, gain=15, nf=2, iip3=14.5)
+
+    signals = mixer(signals, f_osc=2412, gain=0, nf=2)
+
+    signals = lowpass(signals, f_corner=15, atten_pass=0, atten_stop=50, nf=2)
+
+    signals = amplifier(signals, gain=60, nf=10, iip3=14.5)
+
+    signals = bandpass(signals, f_center=10, bandwidth=1, atten_pass=0, atten_stop=35, nf=2)
+
+    for idx, sig in enumerate(signals):
+        print(f'Signal {idx}:')
+        print(f'\tFreq: {sig.freq} MHz')
+        print(f'\tPower: {sig.pwr} dBm')
+        print(f'\tSNR: {sig.get_snr()} dB')
+
+
