@@ -42,6 +42,14 @@ def Vpk_to_dBm(Vpk: float):
     power_dBm = 10 * np.log10(power_watts / 1e-3)
     return power_dBm
 
+def display_voltage(voltage: float):
+    if voltage < 1e-3:
+        return f'{voltage*1e6:.2f} uV'
+    elif voltage < 1:
+        return f'{voltage*1e3:.2f} mV'
+    else:
+        return f'{voltage:.2f} V' 
+
 class Component():
     def __init__(self, name: str, gain_dB: float, nfig: float, iip3_dBm: float, cpout: float):
         self.name = name # A string describing what this component is.
@@ -72,9 +80,9 @@ pnoise_in = -174 + 10*np.log10(BANDWIDTH) # The noise power at the input in dBm.
 components = [
     Component(name='Switch', gain_dB=-0.8, nfig=0.8, iip3_dBm=30, cpout=20),
     Component(name='Front BPF', gain_dB=-1.0, nfig=1.0, iip3_dBm=30, cpout=20),
-    Component(name='LNA', gain_dB=15, nfig=2.0, iip3_dBm=-5, cpout=5),
+    Component(name='LNA', gain_dB=10, nfig=2, iip3_dBm=-5, cpout=5),
     Component(name='Mixer', gain_dB=-6, nfig=6, iip3_dBm=5, cpout=10),
-    Component(name='BB Amp', gain_dB=30, nfig=6, iip3_dBm=10, cpout=15),
+    Component(name='BB Amp', gain_dB=50, nfig=6, iip3_dBm=10, cpout=15),
     Component(name='ADC Filter', gain_dB=-1, nfig=1, iip3_dBm=30, cpout=20)
 ]
 
@@ -91,7 +99,8 @@ for idx, component in enumerate(components[1:], start=1):
     nfac_sys += numerator/denominator
 
 nfig_sys = rat_to_dB(nfac_sys) # Noise Figure of the whole system.
-print(f'\nSystem Noise Figure: {nfig_sys:.2f} dB')
+print('\nCALCULATED SYSTEM PROPERTIES')
+print(f'System Noise Figure: {nfig_sys:.2f} dB')
 
 #############################
 ##### Total System Gain #####
@@ -133,7 +142,7 @@ iip3_sys_dBm = rat_to_dB(iip3_sys_W/1e-3) # The system IIP3 in dBm.
 print(f'System IIP3: {iip3_sys_dBm:.2f} dBm')
 
 # Find the input power at which IM3 products become problematic (this is step 4 in the example).
-# There will be severe IM3 desense when two tones having a power of {p_im3:.2f} dBm are applied to the input.
+# There will be severe IM3 desense when two tones having this power are applied to the input.
 p_im3 = (POUT_WANTED - gain_dB_sys + 2*iip3_sys_dBm) / 3
 print(f'Severe IM3 Desense: {p_im3:.2f} dBm')
 
@@ -156,3 +165,27 @@ print(f'Required ADC bits: {enob:.1f} bits')
 # I already calculated the output SNR, so I do not need to do that again.
 ber = 0.5 * np.exp(-snr_out / 2)
 print(f'Estimated BER: {ber:.2e} (unitless)\n')
+
+############################################
+##### Power and Voltage for Each Block #####
+############################################
+
+current_sig_pwr = PIN
+current_noise_pwr = pnoise_in
+current_Vpk = dBm_to_Vpk(PIN)
+print('POWER AND VOLTAGE FOR EACH COMPONENT')
+
+for component in components:
+
+    print(f'Component Name: {component.name}')
+    print(f'\tInput Signal Power: {current_sig_pwr:.2f} dBm')
+    print(f'\tInput Noise Power: {current_noise_pwr:.2f} dBm')
+    print(f'\tInput Signal Vpk: {display_voltage(current_Vpk)}')
+
+    current_sig_pwr += component.gain_dB
+    current_noise_pwr += component.gain_dB + component.nfig
+    current_Vpk = dBm_to_Vpk(current_sig_pwr)
+
+    print(f'\tOutput Signal Power: {current_sig_pwr:.2f} dBm')
+    print(f'\tOutput Noise Power: {current_noise_pwr:.2f} dBm')
+    print(f'\tOutput Signal Vpk: {display_voltage(current_Vpk)}')
