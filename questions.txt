@@ -1,5 +1,3 @@
 EEE 598: RF Transceivers
-- What is the difference between spurs and harmonics? Is there a difference between interferers and blockers?
-- What relationship must the two frequencies for a two tone test have to each other? I tested with the second frequency 10% higher than the first, and that produced beautiful results. Is the system very sensitive to that?
-- Should the third harmonic of both frequencies have equal power? This is referring to the intermodulation case.
-
+- What is the difference between spurs and harmonics?
+- Is there an equation to find the compression point of an entire system? What about an equation for the system IIP2? 

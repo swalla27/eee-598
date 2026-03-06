@@ -42,7 +42,7 @@ class Component():
         self.iip3_dBm = iip3_dBm # Component IIP3 in dBm.
         self.cpout = cpout # Output 1dB compression point.
 
-        self.cpin = cpout - gain_dB # Input 1dB compression point.
+        self.cpin = (cpout+1) - gain_dB # Input 1dB compression point.
         self.nfac = dB_to_rat(self.nfig) # Noise Factor, which is unitless.
         self.gain_rat = dB_to_rat(self.gain_dB) # Gain as a ratio.
         self.iip3_W = 1e-3 * dB_to_rat(self.iip3_dBm) # IIP3 in units of W.
@@ -63,14 +63,25 @@ TABLE_DIR = '/home/steven-wallace/Documents/asu/eee-598/labs/lab3'
 #############################
 
 # Define all of the components in the signal chain.
+# My values.
 components = [
-    Component(name='Switch', gain_dB=-0.8, nfig=0.8, iip3_dBm=30, cpout=20),
-    Component(name='Front BPF', gain_dB=-1.0, nfig=1.0, iip3_dBm=30, cpout=20),
+    Component(name='Switch', gain_dB=-2.0, nfig=0.8, iip3_dBm=30, cpout=20),
+    Component(name='Front BPF', gain_dB=-1.5, nfig=1.0, iip3_dBm=30, cpout=20),
     Component(name='LNA', gain_dB=10, nfig=2, iip3_dBm=-5, cpout=5),
     Component(name='Mixer', gain_dB=-6, nfig=6, iip3_dBm=5, cpout=10),
-    Component(name='BB Amp', gain_dB=50, nfig=6, iip3_dBm=10, cpout=15),
-    Component(name='ADC Filter', gain_dB=-1, nfig=1, iip3_dBm=30, cpout=20)
+    Component(name='BB Amp', gain_dB=60, nfig=6, iip3_dBm=10, cpout=15),
+    Component(name='ADC Filter', gain_dB=-2.0, nfig=1, iip3_dBm=30, cpout=20)
 ]
+
+# The values from the example.
+# components = [
+#     Component(name='Switch', gain_dB=-0.8, nfig=0.8, iip3_dBm=30, cpout=20),
+#     Component(name='Front BPF', gain_dB=-1.0, nfig=1.0, iip3_dBm=30, cpout=20),
+#     Component(name='LNA', gain_dB=15, nfig=2, iip3_dBm=-5, cpout=5),
+#     Component(name='Mixer', gain_dB=-6, nfig=6, iip3_dBm=5, cpout=10),
+#     Component(name='BB Amp', gain_dB=30, nfig=6, iip3_dBm=10, cpout=15),
+#     Component(name='ADC Filter', gain_dB=-1, nfig=1, iip3_dBm=30, cpout=20)
+# ]
 
 ###############################
 ##### System Noise Factor #####
@@ -166,6 +177,8 @@ fig, ax = plt.subplots(figsize=(4,2))
 ax.axis('off')
 ax.axis('tight')
 table = ax.table(cellText=df.values, colLabels=df.columns, loc='center', cellLoc='center')
+table.auto_set_font_size(False)
+table.set_fontsize(8)
 plt.savefig(os.path.join(TABLE_DIR, 'calculated_sys_properties.png'), dpi=300)
 
 ###################################
@@ -173,7 +186,7 @@ plt.savefig(os.path.join(TABLE_DIR, 'calculated_sys_properties.png'), dpi=300)
 ###################################
 
 # Initalize the variables used in this table.
-points = ['A', 'B', 'C', 'D', 'E', 'F']
+points = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
 signal_powers = list()
 noise_powers = list()
 signal_amplitudes = list()
@@ -183,16 +196,22 @@ snr_values = list()
 current_sig_pwr = PIN
 current_noise_pwr = pnoise_in
 current_Vpk = dBm_to_Vpk(PIN)
+
+signal_powers.append(f'{current_sig_pwr:.1f}')
+noise_powers.append(f'{current_noise_pwr:.0f}')
+signal_amplitudes.append(display_voltage(current_Vpk))
+snr_values.append(f'{current_sig_pwr - current_noise_pwr:.1f}')
+
 for component in components:
+
+    current_sig_pwr += component.gain_dB
+    current_noise_pwr += component.gain_dB + component.nfig
+    current_Vpk = dBm_to_Vpk(current_sig_pwr)
 
     signal_powers.append(f'{current_sig_pwr:.1f}')
     noise_powers.append(f'{current_noise_pwr:.0f}')
     signal_amplitudes.append(display_voltage(current_Vpk))
     snr_values.append(f'{current_sig_pwr - current_noise_pwr:.1f}')
-
-    current_sig_pwr += component.gain_dB
-    current_noise_pwr += component.gain_dB + component.nfig
-    current_Vpk = dBm_to_Vpk(current_sig_pwr)
 
 # Consolidate the data into a single dictionary.
 data_dict = {
@@ -210,9 +229,8 @@ ax.axis('off')
 ax.axis('tight')
 table = ax.table(cellText=df.values, colLabels=df.columns, loc='center', cellLoc='center')
 table.auto_set_font_size(False)
-table.set_fontsize(10)
+table.set_fontsize(8)
 plt.savefig(os.path.join(TABLE_DIR, 'sig_pwr_voltages.png'), dpi=300)
-
 
 ##############################
 ##### System Input Table #####
@@ -224,24 +242,27 @@ gain_vals = list()
 nfig_vals = list()
 iip3_vals = list()
 cpout_vals = list()
+dyn_ranges = list()
 for component in components:
     names.append(component.name)
     gain_vals.append(component.gain_dB)
     nfig_vals.append(component.nfig)
     iip3_vals.append(component.iip3_dBm)
     cpout_vals.append(component.cpout)
+    dyn_ranges.append(component.dyn_range)
 
 data_dict = {
     'Block Name': names,
     'Gain (dB)': gain_vals,
     'Noise Figure (dB)': nfig_vals,
     'IIP3 (dBm)': iip3_vals,
-    'Output Comp (dBm)': cpout_vals
+    'Output Comp (dBm)': cpout_vals,
+    'Dynamic Range (dB)': dyn_ranges
 }
 
 # Create the table from that dictinoary.
 df = pd.DataFrame(data=data_dict)
-fig, ax = plt.subplots(figsize=(7,2))
+fig, ax = plt.subplots(figsize=(8,2))
 ax.axis('off')
 ax.axis('tight')
 table = ax.table(cellText=df.values, colLabels=df.columns, loc='center', cellLoc='center')
