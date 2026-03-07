@@ -14,7 +14,7 @@ import sys
 import os
 
 sys.path.append('/home/steven-wallace/Documents/asu/eee-598')
-from unit_conv_func import dB_to_rat, rat_to_dB, Vpk_to_dBm, dBm_to_Vpk
+from unit_conversion import dB_to_rat, rat_to_dB, Vpk_to_dBm, dBm_to_Vpk
 
 plt.rcParams.update({
     "font.family": "serif",
