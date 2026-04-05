@@ -1,6 +1,6 @@
-evidence/
 notes/
 projects/
 quizzes/
 *.pdf
 *.odt
+venv/*
