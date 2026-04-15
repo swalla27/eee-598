@@ -21,25 +21,29 @@ bits = np.where(bits == 0, 0.5, 2)
 ##### Time Domain #####
 #######################
 
+# TSTEP = 0.1/BIT_RATE
+
+cutoff_factor = 1.0
+cutoff_hz = cutoff_factor * BIT_RATE
+fs = 1.0 / TSTEP
+Wn = cutoff_hz / (fs/2.0)
+
 t = np.arange(0, SIM_DUR, TSTEP)
 modsig_t = np.repeat(bits, int(BIT_DUR/TSTEP))
-lpf = signal.butter(N=3, Wn=0.5, btype='low', output='sos')
+lpf = signal.butter(N=3, Wn=Wn, btype='low', output='sos')
 filtsig_t = signal.sosfilt(lpf, modsig_t)
 
-plt.plot(t, modsig_t, label='Unfiltered')
-plt.plot(t, filtsig_t, label='Filtered')
-plt.legend()
-plt.show()
-
-sys.exit()
-
-
+# plt.plot(t, modsig_t, label='Unfiltered')
+# plt.plot(t, filtsig_t, label='Filtered')
+# plt.legend()
+# plt.show()
+# sys.exit()
 
 carsig_t = np.sin(2*np.pi*CAR_FREQ*t)
-rfsig_t = modsig_t * carsig_t
+rfsig_t = filtsig_t * carsig_t
 
 plt.subplot(3, 1, 1)
-plt.plot(t, modsig_t)
+plt.plot(t, filtsig_t)
 plt.ylabel('Mod Signal')
 plt.grid(True)
 
@@ -66,16 +70,16 @@ f_raw = fftfreq(rfsig_t.size, d=TSTEP)
 pidxs = np.nonzero(f_raw > 0)
 f_pos = f_raw[pidxs]
 
-modsig_f = fft(modsig_t)
+filtsig_f = fft(filtsig_t)
 carsig_f = fft(carsig_t)
 rfsig_f = fft(rfsig_t)
 
-modsig_fpow = np.abs(modsig_f)[pidxs]
+filtsig_fpow = np.abs(filtsig_f)[pidxs]
 carsig_fpow = np.abs(carsig_f)[pidxs]
 rfsig_fpow = np.abs(rfsig_f)[pidxs]
 
 plt.subplot(3, 1, 1)
-plt.plot(f_pos, modsig_fpow)
+plt.plot(f_pos, filtsig_fpow)
 plt.ylabel('Mod Signal')
 plt.xlim([0, 5*BIT_RATE])
 plt.grid(True)
