@@ -1,3 +1,2 @@
 EEE 598: RF Transceivers
-- What is the difference between spurs and harmonics?
-- Is there an equation to find the compression point of an entire system? What about an equation for the system IIP2? 
+
